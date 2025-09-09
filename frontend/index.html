@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MY Simple GPT</title>
+  <style>
+    :root {
+      --primary: #4a90e2;
+      --secondary: #f5f7fa;
+      --user-bg: #d0e6ff;
+      --bot-bg: #e8ebed;
+      --text-color: #333;
+      --border-radius: 12px;
+      --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family);
+      background: var(--secondary);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+    #chat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 800px;
+      margin: auto;
+    }
+    .message {
+      max-width: 70%;
+      padding: 0.75rem 1rem;
+      border-radius: var(--border-radius);
+      word-wrap: break-word;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--user-bg);
+    }
+    .message.bot {
+      align-self: flex-start;
+      background: var(--bot-bg);
+    }
+    footer {
+      padding: 0.75rem;
+      background: #fff;
+      border-top: 1px solid #ddd;
+    }
+    textarea {
+      width: 100%;
+      resize: none;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: var(--border-radius);
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      font-family: var(--font-family);
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:hover:not(.loading) {
+      background: darken(var(--primary), 10%);
+    }
+    button.loading {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .error {
+      color: #d9534f;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Textzusammenfassung Chat</h1>
+</header>
+<div id="chat-container">
+  <div id="chat"></div>
+</div>
+<footer>
+  <div class="controls">
+    <textarea id="inputText" rows="2" placeholder="Gib deinen Text hier ein..."></textarea>
+    <button id="summarizeBtn">Senden</button>
+  </div>
+  <div id="error" class="error"></div>
+</footer>
+
+<script>
+  const chat = document.getElementById('chat');
+  const inputText = document.getElementById('inputText');
+  const btn = document.getElementById('summarizeBtn');
+  const errorDiv = document.getElementById('error');
+
+  btn.addEventListener('click', summarize);
+
+  function appendMessage(text, sender) {
+    const msg = document.createElement('div');
+    msg.classList.add('message', sender);
+    msg.textContent = text;
+    chat.appendChild(msg);
+    chat.parentElement.scrollTop = chat.parentElement.scrollHeight;
+  }
+
+  async function summarize() {
+    const text = inputText.value.trim();
+    errorDiv.textContent = '';
+    if (!text) {
+      errorDiv.textContent = 'Bitte Text eingeben.';
+      return;
+    }
+
+    appendMessage(text, 'user');
+    inputText.value = '';
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+      const res = await fetch("http://localhost:8080/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Serverfehler');
+      }
+      const data = await res.json();
+      appendMessage(data.summary, 'bot');
+    } catch (err) {
+      errorDiv.textContent = 'Fehler: ' + err.message;
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+</script>
+</body>
+</html>
